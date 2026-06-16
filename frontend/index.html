@@ -247,27 +247,6 @@
                         <input type="range" id="payload" min="0.0" max="5.0" step="0.1" value="1.5">
                     </div>
 
-                    <div class="form-grid">
-                        <!-- Wind Speed Slider -->
-                        <div class="form-group">
-                            <label for="wind-speed"><i class="fa-solid fa-wind text-muted"></i> Wind: <span id="wind-speed-val" class="font-mono text-cyan">5.0</span> km/h</label>
-                            <input type="range" id="wind-speed" min="0.0" max="50.0" step="0.5" value="5.0">
-                        </div>
-
-                        <!-- Congestion Slider -->
-                        <div class="form-group">
-                            <label for="congestion"><i class="fa-solid fa-traffic-light text-muted"></i> Congestion: <span id="congestion-val" class="font-mono text-cyan">2.0</span></label>
-                            <input type="range" id="congestion" min="1.0" max="5.0" step="0.1" value="2.0">
-                        </div>
-                    </div>
-
-                    <!-- Starting Battery Slider -->
-                    <div class="form-group">
-                        <label for="battery"><i class="fa-solid fa-battery-half text-muted"></i> Starting Battery: <span id="battery-val" class="font-mono text-cyan">100</span> %</label>
-                        <input type="range" id="battery" min="15.0" max="100.0" step="1.0" value="100.0">
-                    </div>
-
-
                     <!-- Submit Buttons -->
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary" id="compute-btn">
@@ -380,34 +359,6 @@
                     <i class="fa-solid fa-leaf text-green"></i>
                 </div>
                 <span class="hud-value"><span id="val-carbon">--</span> <span class="hud-unit">kg</span></span>
-            </div>
-
-            <!-- AI Delivery Prediction Card -->
-            <div class="hud-box ai-prediction-card" id="hud-ai-prediction">
-                <div class="hud-box-header">
-                    <span class="hud-label text-magenta">AI PREDICTION</span>
-                    <i class="fa-solid fa-brain pulse-glow text-magenta" style="color: var(--neon-magenta);"></i>
-                </div>
-                <div class="ai-prediction-body">
-                    <div class="ai-stat-row">
-                        <span class="ai-stat-label">Predicted ETA:</span>
-                        <div class="hud-value text-magenta" style="font-size: 1.3rem; margin-top: 2px;"><span id="ai-eta">--</span> <span class="hud-unit">min</span></div>
-                    </div>
-                    <div class="ai-stat-row-grid">
-                        <div class="ai-mini-stat">
-                            <span class="ai-stat-label">Confidence</span>
-                            <span class="ai-stat-val"><span id="ai-confidence">--</span>%</span>
-                        </div>
-                        <div class="ai-mini-stat">
-                            <span class="ai-stat-label">Weather Impact</span>
-                            <span class="ai-stat-val" id="ai-weather-impact">--</span>
-                        </div>
-                        <div class="ai-mini-stat">
-                            <span class="ai-stat-label">Battery Impact</span>
-                            <span class="ai-stat-val" id="ai-battery-impact">--</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
