@@ -66,6 +66,11 @@ const nodesGroup = document.getElementById("nodes-group");
 const edgesGroup = document.getElementById("edges-group");
 const activePathGroup = document.getElementById("active-path-group");
 const droneGroup = document.getElementById("drone-group");
+const droneMap = document.getElementById("drone-map");
+const hazardsGroup = document.getElementById("hazards-group");
+const hazardModeBtn = document.getElementById("hazard-mode-btn");
+let activeHazards = [];
+let hazardModeActive = false;
 
 // Report Modal Selectors
 const viewReportBtn = document.getElementById("view-report-btn");
@@ -129,6 +134,70 @@ function setupEventListeners() {
             reportModal.classList.add("hidden");
         }
     });
+
+    // Restricted Airspace Hazard Toggle
+    if (hazardModeBtn) {
+        hazardModeBtn.addEventListener("click", () => {
+            hazardModeActive = !hazardModeActive;
+            if (hazardModeActive) {
+                hazardModeBtn.classList.add("active");
+                hazardModeBtn.querySelector("span").textContent = "Restricted Airspace Mode: ON";
+            } else {
+                hazardModeBtn.classList.remove("active");
+                hazardModeBtn.querySelector("span").textContent = "Restricted Airspace Mode: OFF";
+            }
+        });
+    }
+
+    // Map Click Handler for placing/removing restricted zones
+    if (droneMap) {
+        droneMap.addEventListener("click", (e) => {
+            if (!hazardModeActive) return;
+
+            // Don't click trigger when clicking nodes
+            if (e.target.closest(".map-node")) {
+                return;
+            }
+
+            const svgCoords = getSvgClickCoords(e);
+            const gridCoords = getGridCoords(svgCoords.x, svgCoords.y);
+
+            const cx = Math.max(0, Math.min(100, gridCoords.x));
+            const cy = Math.max(0, Math.min(100, gridCoords.y));
+
+            // Check if click hits an existing hazard
+            let hitIndex = -1;
+            for (let i = 0; i < activeHazards.length; i++) {
+                const hz = activeHazards[i];
+                const dx = hz.x - cx;
+                const dy = hz.y - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist <= hz.r) {
+                    hitIndex = i;
+                    break;
+                }
+            }
+
+            if (hitIndex !== -1) {
+                // Remove hazard
+                activeHazards.splice(hitIndex, 1);
+            } else {
+                // Add hazard
+                activeHazards.push({
+                    x: cx,
+                    y: cy,
+                    r: 8.0
+                });
+            }
+
+            renderHazards();
+
+            // Auto-recalculate route
+            if (selectedStartNode && selectedEndNode) {
+                calculateRoute();
+            }
+        });
+    }
 }
 
 // Switch between Sequence and tracer terminal tabs
@@ -455,6 +524,15 @@ function resetSelection() {
         timelineTicks[4].textContent = "16 min";
         timelineTicks[5].textContent = "20 min";
     }
+
+    // Reset restricted airspace hazards
+    activeHazards = [];
+    renderHazards();
+    hazardModeActive = false;
+    if (hazardModeBtn) {
+        hazardModeBtn.classList.remove("active");
+        hazardModeBtn.querySelector("span").textContent = "Restricted Airspace Mode: OFF";
+    }
 }
 
 // Calculate Dijkstra path corridor
@@ -478,7 +556,8 @@ async function calculateRoute() {
         end: selectedEndNode,
         weather: weatherSelect.value,
         payload: payloadSlider.value,
-        optimize: optimizeSelect.value
+        optimize: optimizeSelect.value,
+        hazards: JSON.stringify(activeHazards)
     });
 
     try {
@@ -996,5 +1075,40 @@ function generateStreetLines() {
         line.setAttribute("stroke", "rgba(124, 58, 237, 0.12)");
         line.setAttribute("stroke-width", "1.8");
         streetGroup.appendChild(line);
+    });
+}
+
+// Calculate click coordinates relative to SVG viewBox (1000 x 900)
+function getSvgClickCoords(event) {
+    const rect = droneMap.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 1000;
+    const y = ((event.clientY - rect.top) / rect.height) * 900;
+    return { x, y };
+}
+
+// Convert SVG coordinate space to 0-100 grid system coordinates
+function getGridCoords(svgX, svgY) {
+    const x = ((svgX - marginX) / scaleWidth) * 100;
+    const y = ((svgY - marginY) / scaleHeight) * 100;
+    return { x, y };
+}
+
+// Render the active restricted airspace circles onto the SVG hazards group
+function renderHazards() {
+    if (!hazardsGroup) return;
+    hazardsGroup.innerHTML = "";
+
+    activeHazards.forEach((hz, idx) => {
+        const svgCoords = getSvgCoords(hz.x, hz.y);
+        const svgRadius = (hz.r / 100) * scaleWidth;
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", svgCoords.x);
+        circle.setAttribute("cy", svgCoords.y);
+        circle.setAttribute("r", svgRadius);
+        circle.setAttribute("class", "hazard-zone");
+        circle.setAttribute("data-index", idx);
+
+        hazardsGroup.appendChild(circle);
     });
 }

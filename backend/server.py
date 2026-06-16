@@ -106,6 +106,39 @@ class DroneDeliveryGraph:
         self.add_edge("Hyderabad_Depot", "Jaipur_Zone", 3.3, 0, 1.1)
         self.add_edge("Jaipur_Zone", "Hyderabad_Depot", 3.3, 0, 1.1)
 
+    def is_edge_intersecting_hazard(self, from_node_id, to_node_id, hazard_x, hazard_y, radius):
+        node_a = self.nodes.get(from_node_id)
+        node_b = self.nodes.get(to_node_id)
+        if not node_a or not node_b:
+            return False
+            
+        x1, y1 = node_a.x, node_a.y
+        x2, y2 = node_b.x, node_b.y
+        cx, cy = hazard_x, hazard_y
+        
+        vx = x2 - x1
+        vy = y2 - y1
+        
+        wx = cx - x1
+        wy = cy - y1
+        
+        v_dot_v = vx * vx + vy * vy
+        if v_dot_v == 0.0:
+            dist_sq = wx * wx + wy * wy
+            return dist_sq <= radius * radius
+            
+        t = (wx * vx + wy * vy) / v_dot_v
+        t = max(0.0, min(1.0, t))
+        
+        proj_x = x1 + t * vx
+        proj_y = y1 + t * vy
+        
+        dx = cx - proj_x
+        dy = cy - proj_y
+        dist_sq = dx * dx + dy * dy
+        
+        return dist_sq <= radius * radius
+
     def calculate_edge_cost(self, edge, weather, payload_weight, optimize_by):
         # 1. Weather Impact on Speed and Risk
         speed = self.DRONE_BASE_SPEED
@@ -148,7 +181,7 @@ class DroneDeliveryGraph:
             
         return edge.distance
 
-    def find_shortest_path(self, start_node, end_node, weather, payload_weight, optimize_by):
+    def find_shortest_path(self, start_node, end_node, weather, payload_weight, optimize_by, hazards=None):
         # Validation checks
         if start_node not in self.nodes:
             return {"success": False, "error_message": f"Start node '{start_node}' not found in delivery grid."}
@@ -194,6 +227,21 @@ class DroneDeliveryGraph:
                 
             for edge in edges:
                 v = edge.to
+                
+                # Check hazard intersection
+                blocked = False
+                if hazards:
+                    for hz in hazards:
+                        hz_x = float(hz.get("x", 0))
+                        hz_y = float(hz.get("y", 0))
+                        hz_r = float(hz.get("r", 8.0))
+                        if self.is_edge_intersecting_hazard(u, v, hz_x, hz_y, hz_r):
+                            blocked = True
+                            break
+                if blocked:
+                    trace.append(f"      🚫 Edge '{u} -> {v}' blocked by restricted airspace Radar Hazard Zone. Skipping relaxation.")
+                    continue
+                    
                 weight = self.calculate_edge_cost(edge, weather, payload_weight, optimize_by)
                 new_cost = distances[u] + weight
                 
@@ -391,6 +439,12 @@ class DroneDeliveryAPIHandler(SimpleHTTPRequestHandler):
             except ValueError:
                 payload = 0.0
 
+            hazards_raw = query.get("hazards", ["[]"])[0]
+            try:
+                hazards = json.loads(hazards_raw)
+            except Exception:
+                hazards = []
+
             if not start or not end:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
@@ -401,7 +455,7 @@ class DroneDeliveryAPIHandler(SimpleHTTPRequestHandler):
                 return
 
             try:
-                res = self.graph.find_shortest_path(start, end, weather, payload, optimize)
+                res = self.graph.find_shortest_path(start, end, weather, payload, optimize, hazards)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 add_cors_headers()

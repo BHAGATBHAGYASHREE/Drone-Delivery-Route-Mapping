@@ -60,6 +60,8 @@
 
                     <!-- Street Lines Group (Grid city streets) -->
                     <g id="street-lines-group"></g>
+                    <!-- Restricted Airspace Hazard Zones Group -->
+                    <g id="hazards-group"></g>
                     <!-- Graph Connections Group -->
                     <g id="edges-group"></g>
                     <!-- Active Selected Path Group -->
@@ -176,7 +178,7 @@
 
                 <!-- Interactive HUD Instruction -->
                 <div class="map-hud" id="hud-instructions">
-                    <i class="fa-solid fa-circle-info"></i> Click vertices directly on the screen radar to set flight path endpoints.
+                    <i class="fa-solid fa-circle-info"></i> Click radar to select hubs. Toggle Restricted Airspace Mode to place/remove hazard zones.
                 </div>
             </div>
         </main>
@@ -253,6 +255,12 @@
                             <i class="fa-solid fa-arrows-rotate"></i> Reset
                         </button>
                     </div>
+
+                    <!-- Radar Hazard Mode Toggle -->
+                    <button type="button" class="btn btn-secondary" id="hazard-mode-btn" style="width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Restricted Airspace Mode: OFF</span>
+                    </button>
                 </form>
 
                 <!-- Dynamic Pre-flight Advisory Box -->

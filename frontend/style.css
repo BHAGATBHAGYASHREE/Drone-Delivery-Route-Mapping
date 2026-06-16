@@ -1264,6 +1264,39 @@ input[type="range"]::-webkit-slider-thumb {
     display: none !important;
 }
 
+/* ==========================================
+   RESTRICTED AIRSPACE / HAZARD ZONES
+   ========================================== */
+.hazard-zone {
+    fill: rgba(239, 68, 68, 0.15);
+    stroke: var(--neon-red, #ef4444);
+    stroke-width: 2px;
+    stroke-dasharray: 4 2;
+    cursor: pointer;
+    filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.4));
+    animation: hazardPulse 3s infinite ease-in-out;
+}
+
+@keyframes hazardPulse {
+    0%, 100% {
+        fill: rgba(239, 68, 68, 0.10);
+        stroke-opacity: 0.6;
+    }
+    50% {
+        fill: rgba(239, 68, 68, 0.22);
+        stroke-opacity: 1.0;
+    }
+}
+
+/* Hazard Mode Toggle Button Active State */
+#hazard-mode-btn.active {
+    background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
 /* Print Overrides */
 @media print {
     body * {
