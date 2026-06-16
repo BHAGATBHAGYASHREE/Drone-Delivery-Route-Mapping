@@ -739,7 +739,7 @@ function drawActiveRoutePath() {
     activePolyline.setAttribute("points", points.join(" "));
     activePolyline.setAttribute("class", "transmitting-line");
     activePolyline.setAttribute("fill", "none");
-    activePolyline.setAttribute("clip-path", "url(#path-clip)");
+    activePolyline.setAttribute("mask", "url(#path-mask)");
     activePathGroup.appendChild(activePolyline);
 
     // 3. Set path d coordinates in the clip mask line

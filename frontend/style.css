@@ -962,10 +962,10 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Active Highlight Flight Path */
 .transmitting-line {
-    stroke: var(--neon-magenta);
-    stroke-width: 3.5px;
+    stroke: var(--neon-green);
+    stroke-width: 4.5px;
     stroke-dasharray: 6 5;
-    filter: drop-shadow(0 0 5px var(--neon-magenta-glow));
+    filter: drop-shadow(0 0 6px var(--neon-green-glow));
     animation: flowRoute 25s linear infinite;
 }
 
