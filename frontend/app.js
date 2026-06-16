@@ -6,8 +6,8 @@ let selectedStartNode = null;
 let selectedEndNode = null;
 let activePathNodes = [];
 
-// Backend API URL
-const API_BASE_URL = "https://drone-delivery-route-mapping-backend.onrender.com";
+// Backend API URL (empty for relative pathing during local/hosted executions)
+const API_BASE_URL = "";
 
 // SVG Coordinate Scaler Configurations
 // Coords in backend are 0-100. SVG viewport is 1000 x 900.
@@ -51,7 +51,6 @@ const sequenceContainer = document.getElementById("sequence-container");
 const tracerOutput = document.getElementById("tracer-output");
 
 // Timeline Deck Elements
-const timelineTrack = document.getElementById("timeline-track");
 const timelineProgressBar = document.getElementById("timeline-progress-bar");
 const timelineCursor = document.getElementById("timeline-cursor");
 const timelineCursorVal = document.getElementById("timeline-cursor-val");

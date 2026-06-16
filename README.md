@@ -127,16 +127,15 @@ $$\text{Distance}^2 = (c_x - p_x)^2 + (c_y - p_y)^2$$
 
 If $\text{Distance}^2 \le r^2$, the corridor is blocked. Its cost is treated as infinite, forcing Dijkstra to bypass the edge.
 
----
-
 ## 3. Web UI & Layout Guide
 
-AeroRoute features a premium, responsive dark CAD dashboard:
-*   **Mission Control Panel (Left)**: Input configurations (Hub selects, objective, weather, payload weight) and trigger route calculation or reset controls.
-*   **Radar Navigation Viewport (Center)**: An SVG canvas displaying active flight paths. Clicking on the screen with **Restricted Airspace** enabled spawns hazard circles.
-*   **Dijkstra Tracer Console (Bottom Center)**: A live streaming CLI pane detailing heap operations.
-*   **Operational Telemetry Cards (Right)**: Glassmorphic stats showing distance, duration, battery remaining, carbon offsets, and average safety rating.
-*   **Pre-Flight manifest Modal**: Prompts for dispatcher signature and generates a clean print layout sheet.
+AeroRoute features a premium, responsive glassmorphic lavender-themed dashboard:
+*   **Mission Control Panel (Left)**: Configures flight inputs (Hub selectors, optimization objective, weather environment, payload weight) and triggers path calculations or resets.
+*   **Dijkstra Inspector Terminal (Left - bottom of Control Tower)**: Displays the sequential path list and streams real-time priority queue (min-heap) relaxation tracer logs.
+*   **Radar Navigation Viewport (Center)**: An SVG canvas displaying the city grid, nodes, active flight paths, and drone flight animations. Clicking directly on the viewport with **Restricted Airspace Mode** enabled places or removes circular hazard zones.
+*   **Timeline Deck (Bottom Center)**: Tracks flight progress dynamically in minutes as the drone animates along the calculated route.
+*   **Operational Telemetry HUD (Right)**: Stacked cards displaying real-time metrics for Flight Time, Distance, Power Cell remaining (with a visual progress bar), Risk Index, and Carbon Offsets.
+*   **Pre-Flight Manifest Modal**: Displays a formatted, printable executive logistics summary of the configured flight parameters, path, and telemetry.
 
 ---
 
@@ -198,8 +197,6 @@ Calculates the optimal flight path based on the criteria parameters.
 *   **Scale**: The backend node coordinate scaling handles up to 10,000 vertices seamlessly.
 *   **Zero Dependencies**: The backend requires **no third-party Python frameworks** (such as Flask, FastAPI, or Scikit-Learn), operating completely on Python 3 standard library packages (`http.server`, `urllib`, `heapq`, `json`).
 
----
-
 ## 6. Directory Structure
 
 ```
@@ -210,7 +207,7 @@ drone/
     ├── index.html       # Dashboard HTML cockpit structure
     ├── style.css        # Responsive CSS grid layouts & neon themes
     ├── app.js           # SVG rendering, client-side animations, & API requests
-    └── satellite_map.png# Map grid background asset
+    └── street_map.png   # Map grid background asset
 ```
 
 ---
