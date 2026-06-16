@@ -299,3 +299,45 @@ The AeroRoute server has **zero third-party dependencies**. It utilizes standard
    http://localhost:8000
    ```
 5. Choose locations by clicking nodes on the map or using dropdown parameters, calculate flight routes, inspect Dijkstra relaxation steps, and print logistics reports!
+
+---
+
+## 7. System Design & Algorithmic Solutions
+
+This section addresses the core autonomous logistics and system design requirements outlined in the project specification.
+
+### 1. Concept: Altitude & Headwind Integration in Edge Weights
+AeroRoute resolves this by translating physical flight forces into a single, unified cost index (Energy Consumption in Watt-hours).
+*   **Altitude**: Climbing requires extra energy against gravity. If an edge has a positive altitude gain ($\Delta \text{altitude} > 0$), we increase the power draw parameter by $2.0 \text{ Watts per meter}$ of climb.
+*   **Headwinds**: Strong winds increase drag, which caps the maximum ground speed at $40.0\text{ km/h}$ and adds a $+60.0 \text{ W}$ headwind-resistance overhead to the motor's power draw.
+*   **Unified Formula**: These factors are unified into a single formula for edge cost when optimizing for energy:
+    $$\text{Total Power Draw (W)} = \text{Base Power (250W)} + \text{Weather Drag (W)} + \text{Payload overhead (W)} + \text{Altitude Climb Power (W)}$$
+    $$\text{Weight Cost (Wh)} = \text{Total Power Draw (W)} \times \frac{\text{Distance (km)}}{\text{Effective Speed (km/h)}} \times (1.0 + (\text{Risk} - 1.0) \times 0.1 \times \text{Weather Risk})$$
+
+### 2. Design: Recalculating Routes on Critical Safety Inputs
+For autonomous flight safety, routes must be recalculated dynamically when conditions shift:
+*   **Airspace Restrictions (No-Fly Zones)**: Spawning a **Restricted Airspace / Radar Hazard Zone** on the map sends updated coordinates to the `/api/route` endpoint. The backend calculates overlaps, updates the edge costs to Infinity, and forces Dijkstra to find a detour around the hazard in real-time.
+*   **Weather Alerts & Payload Caps**: During stormy conditions, flight safety caps payload cargo at $3.0\text{ kg}$. If a dispatcher attempts to route a drone with a $>3.0\text{ kg}$ payload in stormy weather, the backend triggers an immediate safety cancellation error: `"Flight Cancelled: Drone operations suspended for payloads > 3kg during Storm alerts."`
+
+### 3. Logic: Dijkstra Minimizing Battery Energy Usage
+When the dispatcher selects the **Battery Energy (Conserved)** optimization objective, Dijkstra's algorithm uses the unified energy weight formula (calculated in Watt-hours) to evaluate path costs. The min-heap priority queue selects the sequence of flight legs that consumes the fewest total Watt-hours ($Wh$) between the launch pad (start hub) and the landing zone (destination dropzone), favoring wind-sheltered and flat flight paths over short but battery-draining paths.
+
+### 4. Scalability: Mid-Flight Weights Shifting (e.g., Extreme Cold)
+If extreme cold weather accelerates battery drain mid-flight:
+1.  **Dynamic Telemetry Updates**: The drone's onboard telemetry system broadcasts sensor logs to the dispatch center, detecting an increased discharge rate (power coefficients scale up by, e.g., $1.5\times$).
+2.  **Graph Weight Shift**: The backend server dynamically adjusts the graph's edge weights globally to match the new high-discharge parameters.
+3.  **Real-Time Rerouting**: The route planner executes a mid-flight Dijkstra search from the drone's *current GPS coordinate* (acting as a dynamic start node) to identify the nearest safe landing pad or sorting hub, updating the active flight plan automatically.
+
+### 5. Deliverable: Route Optimization Report Manifest
+To guarantee flight audit compliance for mission supervisors, the **Route Optimization Report** panel compiles and displays:
+*   **Telemetry Records**: 
+    - Calculated flight path nodes list sequence.
+    - Total flight distance (km) and estimated travel duration (minutes).
+    - Battery power cell consumed (% capacity) and total energy cost (Wh).
+    - Average path safety risk rating (1.0 to 5.0 index).
+    - Environmental carbon offset (kg CO₂ offset vs. equivalent road transit).
+*   **Path Validations**:
+    - Weather-payload compatibility check (verifying stormy safety weight caps).
+    - Restricted airspace check (validating that the path intersects zero active hazard zones).
+    - Detailed Priority Queue (min-heap) relaxation trace logs streaming the step-by-step mathematical path resolution.
+
