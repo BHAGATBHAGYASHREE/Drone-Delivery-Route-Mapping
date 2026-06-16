@@ -6,6 +6,9 @@ let selectedStartNode = null;
 let selectedEndNode = null;
 let activePathNodes = [];
 
+// Backend API URL
+const API_BASE_URL = "https://drone-delivery-route-mapping-backend.onrender.com";
+
 // SVG Coordinate Scaler Configurations
 // Coords in backend are 0-100. SVG viewport is 1000 x 900.
 const marginX = 80;
@@ -218,7 +221,7 @@ function switchTab(tab) {
 // Fetch logistics graph map coordinates from Python Backend API
 async function fetchGraphData() {
     try {
-        const response = await fetch("/api/graph");
+        const response = await fetch(`${API_BASE_URL}/api/graph`);
         if (!response.ok) throw new Error("AeroRoute connection failed.");
         graphData = await response.json();
         
@@ -226,7 +229,7 @@ async function fetchGraphData() {
         renderMap();
     } catch (error) {
         console.error("Graph loading error:", error);
-        alert("Ops Center Alert: Unable to connect to Python routing server. Ensure backend/server.py is running.");
+        alert("Ops Center Alert: Unable to connect to Python routing server. Ensure backend is running at " + API_BASE_URL);
     }
 }
 
@@ -561,7 +564,7 @@ async function calculateRoute() {
     });
 
     try {
-        const response = await fetch(`/api/route?${params.toString()}`);
+        const response = await fetch(`${API_BASE_URL}/api/route?${params.toString()}`);
         if (!response.ok) throw new Error("AeroRoute gateway calculations error.");
         const data = await response.json();
 
@@ -578,7 +581,7 @@ async function calculateRoute() {
 
     } catch (error) {
         console.error("Shortest path calculation failed:", error);
-        alert("AeroRoute failure: Backend connection lost. Ensure Python server is running.");
+        alert("AeroRoute failure: Backend connection lost. Ensure Python server is running at " + API_BASE_URL);
     } finally {
         computeBtn.disabled = false;
         computeBtn.innerHTML = '<i class="fa-solid fa-compass-drafting"></i> Calculate Route';
