@@ -179,13 +179,13 @@ graph TD
     classDef server fill:#F5A623,stroke:#1A1829,stroke-width:2px,color:#fff;
     classDef process fill:#2ECA76,stroke:#1A1829,stroke-width:2px,color:#fff;
 
-    subgraph Browser UI (Frontend)
+    subgraph "Browser UI (Frontend)"
         Inputs[Mission Config inputs: start, end, objective, weather, cargo weight]:::client
         RadarClicks[Radar Screen Clicks: Restricted Airspace circular hazard coordinates]:::client
         Inputs & RadarClicks --> FetchAPI[Send HTTP request: GET /api/route?start=...&hazards=...]:::client
     end
 
-    subgraph Python Backend (server.py)
+    subgraph "Python Backend (server.py)"
         FetchAPI --> ParseParams[Parse query params & retrieve baseline graph nodes/edges]:::server
         ParseParams --> CollisionFilter[Evaluate corridors: Segment-to-Point vector projections]:::process
         
@@ -202,7 +202,7 @@ graph TD
 
     ReturnJSON --> FrontendReceive[Browser receives routing manifest payload]:::client
     
-    subgraph UI Render Cycle (Frontend)
+    subgraph "UI Render Cycle (Frontend)"
         FrontendReceive --> DrawCorridor[Draw glowing neon-green dashed flight corridor path on SVG]:::client
         FrontendReceive --> FlightAnimation[Animate drone flight coordinates timeline slider]:::client
         FrontendReceive --> UpdateHUD[Fill glassmorphic HUD cards with final telemetry statistics]:::client
