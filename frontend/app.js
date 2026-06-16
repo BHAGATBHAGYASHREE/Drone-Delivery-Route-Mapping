@@ -34,6 +34,21 @@ const safetyAlert = document.getElementById("safety-alert");
 const alertTitle = document.getElementById("alert-title");
 const alertDesc = document.getElementById("alert-desc");
 
+// AI Parameter Sliders
+const windSpeedSlider = document.getElementById("wind-speed");
+const windSpeedVal = document.getElementById("wind-speed-val");
+const congestionSlider = document.getElementById("congestion");
+const congestionVal = document.getElementById("congestion-val");
+const batterySlider = document.getElementById("battery");
+const batteryVal = document.getElementById("battery-val");
+
+// AI Telemetry Outputs
+const aiEta = document.getElementById("ai-eta");
+const aiConfidence = document.getElementById("ai-confidence");
+const aiWeatherImpact = document.getElementById("ai-weather-impact");
+const aiBatteryImpact = document.getElementById("ai-battery-impact");
+
+
 // Telemetry Labels
 const valTime = document.getElementById("val-time");
 const valDistance = document.getElementById("val-distance");
@@ -95,8 +110,39 @@ function setupEventListeners() {
         updateWeatherAlert();
     });
 
+    // AI Sliders Event Listeners
+    if (windSpeedSlider) {
+        windSpeedSlider.addEventListener("input", (e) => {
+            windSpeedVal.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+    }
+    if (congestionSlider) {
+        congestionSlider.addEventListener("input", (e) => {
+            congestionVal.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+    }
+    if (batterySlider) {
+        batterySlider.addEventListener("input", (e) => {
+            batteryVal.textContent = Math.round(e.target.value);
+        });
+    }
+
     // Weather pre-flight alerts
-    weatherSelect.addEventListener("change", updateWeatherAlert);
+    weatherSelect.addEventListener("change", (e) => {
+        updateWeatherAlert();
+        
+        // Auto-populate wind speed default for selected weather
+        const w = weatherSelect.value;
+        let defaultWind = 5.0;
+        if (w === "windy") defaultWind = 40.0;
+        else if (w === "rainy") defaultWind = 20.0;
+        else if (w === "stormy") defaultWind = 45.0;
+        
+        if (windSpeedSlider) {
+            windSpeedSlider.value = defaultWind;
+            windSpeedVal.textContent = defaultWind.toFixed(1);
+        }
+    });
 
     // Sync select options to visual elements
     startNodeSelect.addEventListener("change", (e) => {
@@ -487,6 +533,13 @@ function resetSelection() {
     valEnergy.textContent = "-- Wh";
     valRisk.textContent = "--";
     valCarbon.textContent = "--";
+    
+    // Clear AI predictions
+    if (aiEta) aiEta.textContent = "--";
+    if (aiConfidence) aiConfidence.textContent = "--";
+    if (aiWeatherImpact) aiWeatherImpact.textContent = "--";
+    if (aiBatteryImpact) aiBatteryImpact.textContent = "--";
+
     if (batteryRingProgress) {
         batteryRingProgress.style.strokeDashoffset = "251.2";
         batteryRingProgress.style.stroke = "var(--neon-cyan)";
@@ -557,7 +610,10 @@ async function calculateRoute() {
         weather: weatherSelect.value,
         payload: payloadSlider.value,
         optimize: optimizeSelect.value,
-        hazards: JSON.stringify(activeHazards)
+        hazards: JSON.stringify(activeHazards),
+        wind_speed: windSpeedSlider ? windSpeedSlider.value : "5.0",
+        battery: batterySlider ? batterySlider.value : "100.0",
+        congestion: congestionSlider ? congestionSlider.value : "2.0"
     });
 
     try {
@@ -617,6 +673,22 @@ function displayTelemetry(data) {
     valEnergy.textContent = `${data.energy_consumed_wh.toFixed(1)} Wh`;
     valRisk.textContent = data.average_risk.toFixed(1);
     valCarbon.textContent = data.carbon_saved_kg.toFixed(3);
+
+    // Display AI prediction telemetry
+    if (data.ai_prediction) {
+        if (aiEta) aiEta.textContent = data.ai_prediction.predicted_time_mins.toFixed(2);
+        if (aiConfidence) aiConfidence.textContent = Math.round(data.ai_prediction.confidence_pct);
+        if (aiWeatherImpact) {
+            const wImpact = data.ai_prediction.weather_impact_mins;
+            aiWeatherImpact.textContent = wImpact > 0 ? `+${wImpact.toFixed(1)} min` : "0.0 min";
+        }
+        if (aiBatteryImpact) aiBatteryImpact.textContent = data.ai_prediction.battery_impact;
+    } else {
+        if (aiEta) aiEta.textContent = "--";
+        if (aiConfidence) aiConfidence.textContent = "--";
+        if (aiWeatherImpact) aiWeatherImpact.textContent = "--";
+        if (aiBatteryImpact) aiBatteryImpact.textContent = "--";
+    }
 
     // Battery remaining capacity
     const batteryUsed = data.battery_consumed_pct;

@@ -4,6 +4,83 @@ import urllib.parse
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 import json
 import heapq
+import joblib
+import pandas as pd
+import numpy as np
+
+# Load ML Prediction Model on Startup
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "delivery_model.joblib")
+delivery_model_data = None
+if os.path.exists(MODEL_PATH):
+    try:
+        delivery_model_data = joblib.load(MODEL_PATH)
+        print(f"========================================================")
+        print(f"✅ AI Prediction Model loaded successfully from {MODEL_PATH}")
+        print(f"========================================================")
+    except Exception as e:
+        print(f"⚠️ Failed to load AI Prediction Model: {e}")
+else:
+    print(f"⚠️ AI Prediction Model not found at {MODEL_PATH}")
+
+def predict_delivery_time(distance, wind_speed, weather, battery_percentage, parcel_weight, congestion_level):
+    if not delivery_model_data:
+        return None
+        
+    try:
+        model = delivery_model_data['model']
+        weather_encoding = delivery_model_data['weather_encoding']
+        
+        # Map weather string to integer
+        weather_val = weather_encoding.get(weather.lower(), 0)
+        
+        # Create input feature DataFrame (matches feature names and order of train_model.py)
+        features = pd.DataFrame([[
+            distance,
+            wind_speed,
+            weather_val,
+            battery_percentage,
+            parcel_weight,
+            congestion_level
+        ]], columns=['distance', 'wind_speed', 'weather_condition', 'battery_percentage', 'parcel_weight', 'congestion_level'])
+        
+        # Make prediction
+        predicted_time = model.predict(features)[0]
+        
+        # Calculate confidence based on variance of individual estimators
+        preds = [tree.predict(features)[0] for tree in model.estimators_]
+        std_dev = np.std(preds)
+        confidence = max(50.0, min(99.0, 100.0 - (std_dev * 8.0)))
+        
+        # Calculate Weather Impact: compare prediction under "clear" weather (val = 0, wind = 0)
+        clear_features = pd.DataFrame([[
+            distance,
+            0.0, # wind speed 0
+            0,   # clear weather encoded
+            battery_percentage,
+            parcel_weight,
+            congestion_level
+        ]], columns=['distance', 'wind_speed', 'weather_condition', 'battery_percentage', 'parcel_weight', 'congestion_level'])
+        clear_time = model.predict(clear_features)[0]
+        weather_impact = max(0.0, predicted_time - clear_time)
+        
+        # Calculate Battery Impact
+        if battery_percentage < 35.0:
+            battery_impact = "High"
+        elif battery_percentage < 70.0:
+            battery_impact = "Moderate"
+        else:
+            battery_impact = "Low"
+            
+        return {
+            "predicted_time_mins": round(float(predicted_time), 2),
+            "confidence_pct": round(float(confidence), 1),
+            "weather_impact_mins": round(float(weather_impact), 2),
+            "battery_impact": battery_impact
+        }
+    except Exception as e:
+        print(f"⚠️ Inference error: {e}")
+        return None
+
 
 PORT = 8000
 
@@ -445,6 +522,29 @@ class DroneDeliveryAPIHandler(SimpleHTTPRequestHandler):
             except Exception:
                 hazards = []
 
+            # Additional query parameters for ML model
+            try:
+                default_wind = 5.0
+                if weather == "windy":
+                    default_wind = 40.0
+                elif weather == "rainy":
+                    default_wind = 20.0
+                elif weather == "stormy":
+                    default_wind = 45.0
+                wind_speed = float(query.get("wind_speed", [str(default_wind)])[0])
+            except ValueError:
+                wind_speed = default_wind
+
+            try:
+                battery = float(query.get("battery", ["100.0"])[0])
+            except ValueError:
+                battery = 100.0
+
+            try:
+                congestion = float(query.get("congestion", ["2.0"])[0])
+            except ValueError:
+                congestion = 2.0
+
             if not start or not end:
                 self.send_response(400)
                 self.send_header("Content-Type", "application/json")
@@ -456,6 +556,14 @@ class DroneDeliveryAPIHandler(SimpleHTTPRequestHandler):
 
             try:
                 res = self.graph.find_shortest_path(start, end, weather, payload, optimize, hazards)
+                
+                # Post-routing: run machine learning model if path succeeded
+                if res.get("success"):
+                    distance = res.get("total_distance", 0.0)
+                    ai_pred = predict_delivery_time(distance, wind_speed, weather, battery, payload, congestion)
+                    if ai_pred:
+                        res["ai_prediction"] = ai_pred
+                
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 add_cors_headers()
