@@ -48,75 +48,139 @@ A premium, visually stunning, high-fidelity web application for mapping and opti
 
 ## 2. DSA Concept: Dijkstra's Weighted Graph Optimization
 
-If you are new to Data Structures and Algorithms (DSA), this section will help you understand how AeroRoute calculates the best flight path for a drone.
+AeroRoute models the drone delivery corridor network as a **Weighted Directed Graph** $G = (V, E)$, mapping regional logistic nodes as vertices ($V$) and flight corridors as edges ($E$). In drone aviation, physical distance is not the only flight constraint; wind speeds, altitude changes, and payload weight directly impact efficiency.
 
-### 1. The Core Concept (In Plain English)
-Imagine you are using a GPS map app on your phone to drive from one city to another:
-*   **Nodes (Vertices)**: These are the **cities or intersections** (like Mumbai Central or Bengaluru Transit Terminal).
-*   **Edges**: These are the **roads or flight corridors** connecting the cities.
-*   **Weights (Costs)**: This is the **toll or difficulty** of using a road. In our drone app, the "cost" is not money, but rather the **travel distance (km)**, **flight time (minutes)**, or **battery power (Watt-hours)** consumed.
+### Drone Route Graph Topology
+Below is a simple visual diagram of the 12 default hubs, sorting centers, and zone vertices mapped in the application:
 
-Our application represents the map as a **Weighted Directed Graph**. A "directed" graph means flight corridors can have different costs depending on the direction of travel (for example, flying *against* the wind is harder than flying *with* it!).
+```mermaid
+graph TD
+    %% Custom Styling
+    classDef hub fill:#5C59E8,stroke:#1A1829,stroke-width:2px,color:#fff;
+    classDef warehouse fill:#F5A623,stroke:#1A1829,stroke-width:2px,color:#fff;
+    classDef dropzone fill:#2ECA76,stroke:#1A1829,stroke-width:2px,color:#fff;
+
+    %% Mappings
+    Mumbai_Hub(Mumbai Logistics Hub):::hub
+    Bengaluru_Terminal(Bengaluru Terminal):::hub
+    Hyderabad_Depot(Hyderabad Depot):::hub
+    
+    Delhi_Depot(Delhi Supply Depot):::warehouse
+    Kolkata_Center(Kolkata Center):::warehouse
+    
+    Chennai_Zone(Chennai Delivery Zone):::dropzone
+    Pune_Zone(Pune Delivery Zone):::dropzone
+    Kochi_Coast(Kochi Coast Zone):::dropzone
+    Jaipur_Zone(Jaipur Pink Zone):::dropzone
+    Ahmedabad_Commercial(Ahmedabad Commercial):::dropzone
+    Goa_Beach_Landing(Goa Beach Landing):::dropzone
+    Noida_Industrial(Noida Industrial):::dropzone
+
+    %% Bidirectional flight lines
+    Mumbai_Hub <--> Ahmedabad_Commercial
+    Mumbai_Hub <--> Delhi_Depot
+    Mumbai_Hub <--> Bengaluru_Terminal
+    Mumbai_Hub <--> Kolkata_Center
+    Mumbai_Hub <--> Hyderabad_Depot
+    
+    Delhi_Depot <--> Jaipur_Zone
+    Delhi_Depot <--> Chennai_Zone
+    
+    Jaipur_Zone <--> Noida_Industrial
+    Hyderabad_Depot <--> Noida_Industrial
+    Hyderabad_Depot <--> Kochi_Coast
+    Hyderabad_Depot <--> Jaipur_Zone
+    
+    Bengaluru_Terminal <--> Chennai_Zone
+    Bengaluru_Terminal <--> Goa_Beach_Landing
+    Bengaluru_Terminal <--> Pune_Zone
+    
+    Chennai_Zone <--> Goa_Beach_Landing
+    
+    Kolkata_Center <--> Pune_Zone
+    Kolkata_Center <--> Kochi_Coast
+```
 
 ---
 
-### 2. How Dijkstra's Algorithm Works (Step-by-Step)
-Dijkstra's algorithm is like a smart explorer that always visits the closest unvisited city first to make sure it finds the absolute cheapest route:
-
-1.  **Preparation**: 
-    *   Set the cost of your starting city to `0`.
-    *   Set the cost of all other cities on the map to **Infinity** (since we don't know how to reach them yet).
-2.  **Explore**:
-    *   Look at the unvisited city with the **cheapest accumulated cost** (on step 1, this is the start city at `0`).
-3.  **Update Neighbors ("Relaxation")**:
-    *   Look at all the cities you can fly directly to from this city.
-    *   Calculate the cost to get to each neighbor *through* your current city.
-    *   If this new path is cheaper than the cost currently written on that neighbor, update it with the new cheaper cost!
-4.  **Mark Visited**:
-    *   Mark the current city as "visited". We will never have to re-evaluate it.
-5.  **Repeat**:
-    *   Pick the next cheapest unvisited city and go back to Step 2.
-    *   Repeat this until you reach your destination.
-
-This process guarantees that when we reach the destination, we have found the absolute cheapest possible flight path!
-
----
-
-### 3. How We Handle Obstacles (Restricted Airspace)
-When you click on the map and place a red pulsing **Radar Hazard Zone** (restricted airspace):
-1.  The backend checks every single flight corridor (edges).
-2.  It mathematically calculates if the straight line between the two hubs crosses the red circle.
-3.  If a corridor intersects the hazard circle, the backend sets that corridor's weight to **Infinity** (effectively deleting/blocking the road).
-4.  Dijkstra's algorithm is then forced to route around the red circle because it cannot travel along "infinite-cost" paths.
-
----
-
-<details>
-<summary><b>📐 Show Advanced Mathematical Formulations & Geometry</b></summary>
-
-### Weight Cost Equations
-Edge weights $w(u, v)$ are computed dynamically based on the optimization objective:
+### Dynamic Edge Cost Formulations
+Edge weights $w(u, v)$ are computed dynamically inside the Python routing engine depending on the active optimization setting:
 
 $$\text{Weight} = \begin{cases} 
 \text{Distance (km)} & \text{if mode} = \text{distance} \\
 \frac{\text{Distance}}{\text{Effective Speed}} \times 60 \text{ (minutes)} & \text{if mode} = \text{time} \\
-\text{Power Draw (W)} \times \text{Flight Time (h)} \times (1.0 + (\text{Risk} - 1.0) \times 0.1 \times \text{Weather Risk}) & \text{if mode} = \text{energy} 
+\text{Total Power Draw (W)} \times \text{Flight Time (h)} \times (1.0 + (\text{Risk} - 1.0) \times 0.1 \times \text{Weather Risk}) & \text{if mode} = \text{energy} 
 \end{cases}$$
 
-*   **Drone Base Speed**: $60.0\text{ km/h}$
-*   **Effective Speed**: $\max(10.0\text{ km/h}, \text{Weather Speed} - (\text{Payload Weight (kg)} \times 2.0))$
-*   **Total Power Draw**: $\text{Base Power (250W)} + \text{Weather Power} + \text{Payload Power} + \text{Altitude Climb Power}$
-*   **Time Complexity**: $O(|E| + |V| \log |V|)$ using a min-heap priority queue (`heapq` in Python).
+#### Constant Constraints:
+- **Base Cruising Speed**: $60.0 \text{ km/h}$
+- **Base Power Consumption**: $250.0 \text{ Watts}$
+- **Power Cell Capacity**: $1000.0 \text{ Wh}$ (Watt-hours)
+- **CO₂ Reduction Quotient**: $0.15 \text{ kg saved per km}$ vs. road vehicle transit
 
-### Point-to-Segment Projection (Restricted Airspace Collisions)
-To check if a corridor between $A(x_1, y_1)$ and $B(x_2, y_2)$ intersects a hazard circle centered at $C(c_x, c_y)$ with radius $r$, we project vector $\vec{AC}$ onto segment direction vector $\vec{AB}$:
+#### Active Parameter Modifiers:
+1. **Weather Effects**:
+   - `Clear`: cruise speed = $60.0 \text{ km/h}$, wind drag power = $0.0 \text{ W}$, weather risk multiplier = $1.0\times$
+   - `Windy`: cruise speed = $40.0 \text{ km/h}$, wind drag power = $+60.0 \text{ W}$, weather risk multiplier = $1.4\times$
+   - `Rainy`: cruise speed = $35.0 \text{ km/h}$, wind drag power = $+30.0 \text{ W}$, weather risk multiplier = $1.6\times$
+   - `Stormy`: cruise speed = $15.0 \text{ km/h}$, wind drag power = $+150.0 \text{ W}$, weather risk multiplier = $3.5\times$
+2. **Payload Weight Impact**:
+   - $\text{Payload Speed Penalty} = \text{Cargo Weight (kg)} \times 2.0 \text{ km/h}$
+   - $\text{Payload Power Overhead} = \text{Cargo Weight (kg)} \times 35.0 \text{ W}$
+   - $\text{Effective Cruising Speed} = \max(10.0 \text{ km/h}, \text{Weather Speed} - \text{Payload Speed Penalty})$
+3. **Altitude Climb Overhead**:
+   - $\text{Climb Power Draw} = \text{Altitude Gain (meters)} \times 2.0 \text{ W}$ (if altitude gain $> 0$)
+
+---
+
+### Dijkstra Priority Queue Pathfinder
+AeroRoute implements Dijkstra's search using a min-heap priority queue ($O(|E| + |V| \log |V|)$). It guarantees finding the global minimum cost path. 
+
+```mermaid
+graph TD
+    Start([Initialize Dijkstra]) --> SetDistances[Set Start Node Dist=0, Others=∞]
+    SetDistances --> PushHeap[Push Start Node to Min-Heap]
+    
+    PushHeap --> PopHeap{Heap Empty?}
+    PopHeap -- Yes --> NoPath[Return Error: No Route Found]
+    PopHeap -- No --> PopMin[Pop Node 'u' with Min Cost]
+    
+    PopMin --> CheckTarget{Is 'u' Destination?}
+    CheckTarget -- Yes --> BuildPath[Reconstruct Shortest Path & Telemetry]
+    BuildPath --> Success([Success Return])
+    
+    CheckTarget -- No --> ExploreEdges[Get Outgoing Edges of 'u']
+    ExploreEdges --> LoopEdges{For Each Edge u -> v}
+    
+    LoopEdges -- No More Edges --> PopHeap
+    LoopEdges -- Next Edge --> CheckHazards{Intersects Airspace Hazard?}
+    
+    CheckHazards -- Yes --> SkipEdge[Skip relaxation / Set Cost=∞]
+    SkipEdge --> LoopEdges
+    
+    CheckHazards -- No --> CalculateWeight[Calculate Dynamic Weight cost]
+    CalculateWeight --> RelaxEdge{New Cost < Current Dist 'v'?}
+    
+    RelaxEdge -- No --> LoopEdges
+    RelaxEdge -- Yes --> UpdatePredecessor[Update Dist 'v' & Predecessor Link]
+    UpdatePredecessor --> PushNew[Push 'v' to Heap]
+    PushNew --> LoopEdges
+```
+
+---
+
+### Geometric Restricted Airspace Collisions
+When evaluating a corridor between node $A(x_1, y_1)$ and node $B(x_2, y_2)$ against a circular hazard center $C(c_x, c_y)$ with radius $r$, the algorithm calculates segment-to-point Euclidean projections:
 
 $$\vec{v} = B - A, \quad \vec{w} = C - A$$
 
 $$t = \max\left(0.0, \min\left(1.0, \frac{\vec{w} \cdot \vec{v}}{\vec{v} \cdot \vec{v}}\right)\right)$$
 
-The closest point on the segment is $P = A + t \vec{v}$. If $(c_x - p_x)^2 + (c_y - p_y)^2 \le r^2$, the segment is blocked.
-</details>
+The closest point on the segment is $P = A + t \vec{v}$. The distance squared between center $C$ and point $P$ is:
+
+$$\text{Distance}^2 = (c_x - p_x)^2 + (c_y - p_y)^2$$
+
+If $\text{Distance}^2 \le r^2$, the segment intersects the restricted airspace circle. The edge is blocked by setting its search cost to infinity, forcing Dijkstra's algorithm to recalculate the flight path around the hazard zone.
 
 ---
 
