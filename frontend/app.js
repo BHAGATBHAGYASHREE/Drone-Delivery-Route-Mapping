@@ -6,8 +6,10 @@ let selectedStartNode = null;
 let selectedEndNode = null;
 let activePathNodes = [];
 
-// Backend API URL (empty for relative pathing during local/hosted executions)
-const API_BASE_URL = "";
+// Backend API URL (empty for relative pathing on localhost, points to Render in production)
+const API_BASE_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? ""
+    : "https://drone-delivery-route-mapping-backend.onrender.com";
 
 // SVG Coordinate Scaler Configurations
 // Coords in backend are 0-100. SVG viewport is 1000 x 900.
