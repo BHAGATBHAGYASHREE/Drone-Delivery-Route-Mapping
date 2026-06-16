@@ -48,42 +48,78 @@ A premium, visually stunning, high-fidelity web application for mapping and opti
 
 ## 2. DSA Concept: Dijkstra's Weighted Graph Optimization
 
-In drone routing, geometric "crow-flies" paths fail to account for weather wind tunnels, altitude current draws, and high-voltage line hazards.
+If you are new to Data Structures and Algorithms (DSA), this section will help you understand how AeroRoute calculates the best flight path for a drone.
 
-By formulating the environment as a **Weighted Directed Graph** $G = (V, E)$, AeroRoute maps locations as vertices ($V$) and flight corridors as edges ($E$).
-The edge weight $w(u, v)$ is calculated dynamically in Python matching the operational settings:
+### 1. The Core Concept (In Plain English)
+Imagine you are using a GPS map app on your phone to drive from one city to another:
+*   **Nodes (Vertices)**: These are the **cities or intersections** (like Mumbai Central or Bengaluru Transit Terminal).
+*   **Edges**: These are the **roads or flight corridors** connecting the cities.
+*   **Weights (Costs)**: This is the **toll or difficulty** of using a road. In our drone app, the "cost" is not money, but rather the **travel distance (km)**, **flight time (minutes)**, or **battery power (Watt-hours)** consumed.
+
+Our application represents the map as a **Weighted Directed Graph**. A "directed" graph means flight corridors can have different costs depending on the direction of travel (for example, flying *against* the wind is harder than flying *with* it!).
+
+---
+
+### 2. How Dijkstra's Algorithm Works (Step-by-Step)
+Dijkstra's algorithm is like a smart explorer that always visits the closest unvisited city first to make sure it finds the absolute cheapest route:
+
+1.  **Preparation**: 
+    *   Set the cost of your starting city to `0`.
+    *   Set the cost of all other cities on the map to **Infinity** (since we don't know how to reach them yet).
+2.  **Explore**:
+    *   Look at the unvisited city with the **cheapest accumulated cost** (on step 1, this is the start city at `0`).
+3.  **Update Neighbors ("Relaxation")**:
+    *   Look at all the cities you can fly directly to from this city.
+    *   Calculate the cost to get to each neighbor *through* your current city.
+    *   If this new path is cheaper than the cost currently written on that neighbor, update it with the new cheaper cost!
+4.  **Mark Visited**:
+    *   Mark the current city as "visited". We will never have to re-evaluate it.
+5.  **Repeat**:
+    *   Pick the next cheapest unvisited city and go back to Step 2.
+    *   Repeat this until you reach your destination.
+
+This process guarantees that when we reach the destination, we have found the absolute cheapest possible flight path!
+
+---
+
+### 3. How We Handle Obstacles (Restricted Airspace)
+When you click on the map and place a red pulsing **Radar Hazard Zone** (restricted airspace):
+1.  The backend checks every single flight corridor (edges).
+2.  It mathematically calculates if the straight line between the two hubs crosses the red circle.
+3.  If a corridor intersects the hazard circle, the backend sets that corridor's weight to **Infinity** (effectively deleting/blocking the road).
+4.  Dijkstra's algorithm is then forced to route around the red circle because it cannot travel along "infinite-cost" paths.
+
+---
+
+<details>
+<summary><b>📐 Show Advanced Mathematical Formulations & Geometry</b></summary>
+
+### Weight Cost Equations
+Edge weights $w(u, v)$ are computed dynamically based on the optimization objective:
 
 $$\text{Weight} = \begin{cases} 
 \text{Distance (km)} & \text{if mode} = \text{distance} \\
 \frac{\text{Distance}}{\text{Effective Speed}} \times 60 \text{ (minutes)} & \text{if mode} = \text{time} \\
-\text{Total Power Draw (W)} \times \text{Flight Time (h)} \times (1.0 + (\text{Risk} - 1.0) \times 0.1 \times \text{Weather Risk}) & \text{if mode} = \text{energy} 
+\text{Power Draw (W)} \times \text{Flight Time (h)} \times (1.0 + (\text{Risk} - 1.0) \times 0.1 \times \text{Weather Risk}) & \text{if mode} = \text{energy} 
 \end{cases}$$
 
-### Dijkstra Search Algorithm
-Using a **Min-Heap Priority Queue**, Dijkstra's algorithm selects the node with the lowest cumulative cost, updating its neighboring weights (relaxation step). 
-With priority queue heap sorting, the search computational complexity is:
+*   **Drone Base Speed**: $60.0\text{ km/h}$
+*   **Effective Speed**: $\max(10.0\text{ km/h}, \text{Weather Speed} - (\text{Payload Weight (kg)} \times 2.0))$
+*   **Total Power Draw**: $\text{Base Power (250W)} + \text{Weather Power} + \text{Payload Power} + \text{Altitude Climb Power}$
+*   **Time Complexity**: $O(|E| + |V| \log |V|)$ using a min-heap priority queue (`heapq` in Python).
 
-$$O(|E| + |V| \log |V|)$$
-
-This guarantees the mathematically optimal path in microseconds, yielding:
-1. **Safety**: Zero routing over suspended storm zones or payload caps.
-2. **Resource Efficiency**: Up to **24%** drone battery extension in conservation mode.
-3. **Decoupled Architecture**: Clean division between Python calculations and CSS/SVG map layouts.
-
-### Geometric Restricted Airspace Collisions
-When checking if a flight corridor between node $A(x_1, y_1)$ and node $B(x_2, y_2)$ intersects a circular hazard zone centered at $C(c_x, c_y)$ with radius $r$, the backend projects vector $\vec{AC}$ onto segment direction vector $\vec{AB}$:
+### Point-to-Segment Projection (Restricted Airspace Collisions)
+To check if a corridor between $A(x_1, y_1)$ and $B(x_2, y_2)$ intersects a hazard circle centered at $C(c_x, c_y)$ with radius $r$, we project vector $\vec{AC}$ onto segment direction vector $\vec{AB}$:
 
 $$\vec{v} = B - A, \quad \vec{w} = C - A$$
 
 $$t = \max\left(0.0, \min\left(1.0, \frac{\vec{w} \cdot \vec{v}}{\vec{v} \cdot \vec{v}}\right)\right)$$
 
-The closest point on the segment is $P = A + t \vec{v}$. The distance squared between $C$ and $P$ is:
-
-$$\text{Distance}^2 = (c_x - p_x)^2 + (c_y - p_y)^2$$
-
-If $\text{Distance}^2 \le r^2$, the corridor is blocked. Its cost is treated as infinite, forcing Dijkstra to bypass the edge.
+The closest point on the segment is $P = A + t \vec{v}$. If $(c_x - p_x)^2 + (c_y - p_y)^2 \le r^2$, the segment is blocked.
+</details>
 
 ---
+
 
 ## 3. Production Deployment & Hosting
 
