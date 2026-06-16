@@ -165,6 +165,47 @@ graph TD
     RelaxEdge -- Yes --> UpdatePredecessor[Update Dist 'v' & Predecessor Link]
     UpdatePredecessor --> PushNew[Push 'v' to Heap]
     PushNew --> LoopEdges
+---
+
+### AeroRoute System Architecture & Dijkstra Data Flow
+The diagram below details how Dijkstra's pathfinding and edge-relaxation concepts are integrated into the full-stack architecture of the AeroRoute project:
+
+```mermaid
+graph TD
+    %% Custom Styling
+    classDef client fill:#5C59E8,stroke:#1A1829,stroke-width:2px,color:#fff;
+    classDef server fill:#F5A623,stroke:#1A1829,stroke-width:2px,color:#fff;
+    classDef process fill:#2ECA76,stroke:#1A1829,stroke-width:2px,color:#fff;
+
+    subgraph Browser UI (Frontend)
+        Inputs[Mission Config inputs: start, end, objective, weather, cargo weight]:::client
+        RadarClicks[Radar Screen Clicks: Restricted Airspace circular hazard coordinates]:::client
+        Inputs & RadarClicks --> FetchAPI[Send HTTP request: GET /api/route?start=...&hazards=...]:::client
+    end
+
+    subgraph Python Backend (server.py)
+        FetchAPI --> ParseParams[Parse query params & retrieve baseline graph nodes/edges]:::server
+        ParseParams --> CollisionFilter[Evaluate corridors: Segment-to-Point vector projections]:::process
+        
+        CollisionFilter -->|Corridor intersects hazard circle| SetInfiniteCost[Set Edge cost/weight = Infinity]:::process
+        CollisionFilter -->|Corridor clear| CalcDynamicCost[Calculate dynamic weather & payload weights]:::process
+        
+        SetInfiniteCost & CalcDynamicCost --> HeapSolver[Execute Dijkstra solver using heapq Min-Heap Priority Queue]:::server
+        
+        HeapSolver --> GenerateTrace[Stream Priority Queue relaxation trace logs]:::server
+        HeapSolver --> CalculateTelemetry[Accumulate final flight time, distance, energy Wh, risk index, CO2 offset]:::server
+        
+        GenerateTrace & CalculateTelemetry --> ReturnJSON[Build HTTP response and return JSON payload]:::server
+    end
+
+    ReturnJSON --> FrontendReceive[Browser receives routing manifest payload]:::client
+    
+    subgraph UI Render Cycle (Frontend)
+        FrontendReceive --> DrawCorridor[Draw glowing neon-green dashed flight corridor path on SVG]:::client
+        FrontendReceive --> FlightAnimation[Animate drone flight coordinates timeline slider]:::client
+        FrontendReceive --> UpdateHUD[Fill glassmorphic HUD cards with final telemetry statistics]:::client
+        FrontendReceive --> StreamTracer[Print step-by-step heap relaxation steps inside Tracer Console]:::client
+    end
 ```
 
 ---
